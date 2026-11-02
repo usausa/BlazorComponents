@@ -1,0 +1,85 @@
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<div @ref="element" @attributes="AdditionalAttributes">@ChildContent</div>
+
+@code {
+    private const string ModulePath = "./_content/BlazorComponents/file-drop-zone.js";
+
+    private ElementReference element;
+
+    private ScriptModule? module;
+
+    private IJSObjectReference? zone;
+
+    private (string DragOverClass, bool Paste) attached;
+
+    private bool disposed;
+
+    [Parameter]
+    public string DragOverClass { get; set; } = "drag-over";
+
+    [Parameter]
+    public bool Paste { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = new ScriptModule(JSRuntime, ModulePath);
+            attached = (DragOverClass, Paste);
+
+            IJSObjectReference created;
+            try
+            {
+                created = await module.InvokeAsync<IJSObjectReference>("attach", element, attached.DragOverClass, attached.Paste).ConfigureAwait(true);
+            }
+            catch (ObjectDisposedException) when (disposed)
+            {
+                return;
+            }
+
+            if (disposed)
+            {
+                await created.ReleaseAsync("dispose").ConfigureAwait(true);
+                return;
+            }
+
+            zone = created;
+        }
+
+        if ((zone is null) || disposed || (attached == (DragOverClass, Paste)))
+        {
+            return;
+        }
+
+        attached = (DragOverClass, Paste);
+        await zone.InvokeVoidAsync("update", attached.DragOverClass, attached.Paste).ConfigureAwait(true);
+    }
+
+    public ValueTask OpenFilePickerAsync() =>
+        module?.InvokeVoidAsync("open", element) ?? ValueTask.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+
+        if (zone is not null)
+        {
+            await zone.ReleaseAsync("dispose").ConfigureAwait(true);
+            zone = null;
+        }
+
+        if (module is not null)
+        {
+            await module.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+}

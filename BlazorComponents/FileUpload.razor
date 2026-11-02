@@ -1,0 +1,237 @@
+@using System.Diagnostics.CodeAnalysis
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.DependencyInjection
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject IServiceProvider ServiceProvider
+
+<div @ref="element" @attributes="AdditionalAttributes">@ChildContent</div>
+
+@code {
+    private const string ModulePath = "./_content/BlazorComponents/file-upload.js";
+
+    private const string AntiforgeryHeader = "RequestVerificationToken";
+
+    private const DynamicallyAccessedMemberTypes JsonSerialized =
+        DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties;
+
+    private ElementReference element;
+
+    private ScriptModule? module;
+
+    private DotNetObjectReference<FileUpload>? reference;
+
+    private IJSObjectReference? zone;
+
+    private Options current;
+
+    private Options attached;
+
+    private bool uploading;
+
+    private bool disposed;
+
+    [EditorRequired]
+    [Parameter]
+    public string Url { get; set; } = default!;
+
+    [Parameter]
+    public string FieldName { get; set; } = "files";
+
+    [Parameter]
+    public string? Accept { get; set; }
+
+    [Parameter]
+    public bool Multiple { get; set; } = true;
+
+    [Parameter]
+    public bool AllowFolders { get; set; }
+
+    [Parameter]
+    public bool Paste { get; set; }
+
+    [Parameter]
+    public string DragOverClass { get; set; } = "drag-over";
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public int Concurrency { get; set; } = 4;
+
+    [Parameter]
+    public bool Uploading { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> UploadingChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<FileUploadStartingEventArgs> OnStarting { get; set; }
+
+    [Parameter]
+    public EventCallback<FileUploadProgress> OnProgress { get; set; }
+
+    [Parameter]
+    public EventCallback<FileUploadResult> OnCompleted { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        current = new Options(DragOverClass, Paste, Accept ?? string.Empty, Multiple, AllowFolders, Disabled);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = new ScriptModule(JSRuntime, ModulePath);
+            reference = DotNetObjectReference.Create(this);
+            attached = current;
+
+            IJSObjectReference created;
+            try
+            {
+                created = await module.InvokeAsync<IJSObjectReference>("attach", [reference, element, .. attached.ToArguments()]).ConfigureAwait(true);
+            }
+            catch (ObjectDisposedException) when (disposed)
+            {
+                return;
+            }
+
+            if (disposed)
+            {
+                await created.ReleaseAsync("dispose").ConfigureAwait(true);
+                return;
+            }
+
+            zone = created;
+        }
+
+        if ((zone is null) || disposed || (current == attached))
+        {
+            return;
+        }
+
+        attached = current;
+        await zone.InvokeVoidAsync("update", attached.ToArguments()).ConfigureAwait(true);
+    }
+
+    public ValueTask OpenFilePickerAsync() =>
+        zone?.InvokeVoidAsync("open", false) ?? ValueTask.CompletedTask;
+
+    public ValueTask OpenFolderPickerAsync() =>
+        zone?.InvokeVoidAsync("open", true) ?? ValueTask.CompletedTask;
+
+    public ValueTask CancelAsync() =>
+        zone?.InvokeVoidAsync("cancel") ?? ValueTask.CompletedTask;
+
+    [JSInvokable]
+    [DynamicDependency(JsonSerialized, typeof(FileUploadEntry))]
+    public async Task<object?[]?> NotifyStarting(int entryCount, int fileCount, long totalBytes)
+    {
+        var entries = await ReadAsync<FileUploadEntry>("entries", entryCount).ConfigureAwait(true);
+        var args = new FileUploadStartingEventArgs(entries, fileCount, totalBytes);
+        await OnStarting.InvokeAsync(args).ConfigureAwait(true);
+        if (args.Cancel || disposed)
+        {
+            return null;
+        }
+
+        var url = Url;
+        var headers = new Dictionary<string, string>(args.Headers, StringComparer.OrdinalIgnoreCase);
+        if (!headers.ContainsKey(AntiforgeryHeader) &&
+            IsSameOrigin(url) &&
+            (ServiceProvider.GetService<AntiforgeryStateProvider>()?.GetAntiforgeryToken() is { } token))
+        {
+            headers[AntiforgeryHeader] = token.Value;
+        }
+
+        object?[] start = [url, FieldName, Concurrency, headers];
+        uploading = true;
+        await NotifyUploadingAsync().ConfigureAwait(true);
+        return start;
+    }
+
+    [JSInvokable]
+    public Task NotifyProgress(int completedFiles, int totalFiles, long loadedBytes, long totalBytes, string? currentPath) =>
+        disposed ? Task.CompletedTask : OnProgress.InvokeAsync(new FileUploadProgress(completedFiles, totalFiles, loadedBytes, totalBytes, currentPath));
+
+    [JSInvokable]
+    [DynamicDependency(JsonSerialized, typeof(FileUploadError))]
+    public async Task NotifyCompleted(int succeeded, int failed, bool canceled, int errorCount)
+    {
+        var errors = await ReadAsync<FileUploadError>("errors", errorCount).ConfigureAwait(true);
+        uploading = false;
+        if (disposed)
+        {
+            return;
+        }
+
+        await NotifyUploadingAsync().ConfigureAwait(true);
+        await OnCompleted.InvokeAsync(new FileUploadResult(succeeded, failed, canceled, errors)).ConfigureAwait(true);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+
+        if (zone is not null)
+        {
+            await zone.ReleaseAsync("dispose").ConfigureAwait(true);
+            zone = null;
+        }
+
+        reference?.Dispose();
+
+        if (module is not null)
+        {
+            await module.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+
+    private async Task<List<T>> ReadAsync<T>(string identifier, int count)
+    {
+        var values = new List<T>(count);
+        while ((zone is not null) && (values.Count < count))
+        {
+            var chunk = await zone.InvokeAsync<T[]>(identifier, values.Count).ConfigureAwait(true);
+            if (chunk.Length == 0)
+            {
+                break;
+            }
+
+            values.AddRange(chunk);
+        }
+
+        return values;
+    }
+
+    private bool IsSameOrigin(string url)
+    {
+        var baseUri = new Uri(Navigation.BaseUri);
+        return Uri.TryCreate(baseUri, url, out var target) &&
+               (Uri.Compare(baseUri, target, UriComponents.SchemeAndServer, UriFormat.Unescaped, StringComparison.OrdinalIgnoreCase) == 0);
+    }
+
+    private Task NotifyUploadingAsync() =>
+        (uploading == Uploading) ? Task.CompletedTask : UploadingChanged.InvokeAsync(uploading);
+
+    private readonly record struct Options(
+        string DragOverClass,
+        bool Paste,
+        string Accept,
+        bool Multiple,
+        bool AllowFolders,
+        bool Disabled)
+    {
+        public object?[] ToArguments() =>
+            [DragOverClass, Paste, Accept, Multiple, AllowFolders, Disabled];
+    }
+}

@@ -1,0 +1,53 @@
+@page "/native-dialog"
+
+<PageTitle>NativeDialog</PageTitle>
+
+<h1>NativeDialog</h1>
+
+<div class="mb-3">
+    <div class="form-check form-check-inline">
+        <input id="modal" class="form-check-input" type="checkbox" @bind="modal" />
+        <label class="form-check-label" for="modal">Modal</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input id="escape" class="form-check-input" type="checkbox" @bind="escape" />
+        <label class="form-check-label" for="escape">CloseOnEscape</label>
+    </div>
+    <div class="form-check form-check-inline">
+        <input id="backdrop" class="form-check-input" type="checkbox" @bind="backdrop" />
+        <label class="form-check-label" for="backdrop">CloseOnBackdropClick</label>
+    </div>
+</div>
+
+<p>
+    <button class="btn btn-primary" @onclick="() => open = true">Open</button>
+</p>
+
+<p>Result: @result</p>
+
+<NativeDialog class="example-dialog" @bind-Open="open" Modal="modal" CloseOnEscape="escape" CloseOnBackdropClick="backdrop" OnClose="OnClose">
+    @* ReSharper disable Html.AttributeValueNotResolved *@
+    <form method="dialog">
+    @* ReSharper restore Html.AttributeValueNotResolved *@
+        <p>Do you want to save the changes?</p>
+        <button class="btn btn-primary" value="yes">Yes</button>
+        <button class="btn btn-secondary" value="no">No</button>
+    </form>
+</NativeDialog>
+
+@code {
+    private bool modal = true;
+
+    private bool escape = true;
+
+    private bool backdrop = true;
+
+    private bool open;
+
+    private string result = string.Empty;
+
+    private void OnClose(string value)
+    {
+        result = string.IsNullOrEmpty(value) ? "(closed)" : value;
+    }
+}

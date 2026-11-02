@@ -1,0 +1,71 @@
+@page "/hot-key"
+
+<PageTitle>HotKey</PageTitle>
+
+<h1>HotKey</h1>
+
+<HotKey Key="Ctrl+S" AllowInInput="true" OnPressed="Save" />
+<HotKey Key="F2" Disabled="disabled" OnPressed="Edit" />
+<HotKey Key="?" OnPressed="Help" />
+<HotKey Code="Shift+Digit1" OnPressed="First" />
+
+<div class="mb-3 example-width">
+    <input class="form-control" placeholder="Ctrl+S also works in this input" />
+</div>
+
+<div class="form-check mb-3">
+    <input id="disabled" class="form-check-input" type="checkbox" @bind="disabled" />
+    <label class="form-check-label" for="disabled">Disable F2</label>
+</div>
+
+<table class="table example-width">
+    <thead>
+        <tr>
+            <th>Shortcut</th>
+            <th>Note</th>
+            <th>Count</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><kbd>Ctrl+S</kbd></td>
+            <td>Works in inputs</td>
+            <td>@saves</td>
+        </tr>
+        <tr>
+            <td><kbd>F2</kbd></td>
+            <td>Stopped by the checkbox</td>
+            <td>@edits</td>
+        </tr>
+        <tr>
+            <td><kbd>?</kbd></td>
+            <td>Shift is not compared for a symbol</td>
+            <td>@helps</td>
+        </tr>
+        <tr>
+            <td><kbd>Shift+1</kbd></td>
+            <td>Physical key by <code>Code</code></td>
+            <td>@firsts</td>
+        </tr>
+    </tbody>
+</table>
+
+@code {
+    private bool disabled;
+
+    private int saves;
+
+    private int edits;
+
+    private int helps;
+
+    private int firsts;
+
+    private void Save() => saves++;
+
+    private void Edit() => edits++;
+
+    private void Help() => helps++;
+
+    private void First() => firsts++;
+}

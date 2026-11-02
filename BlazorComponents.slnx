@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Example/">
+    <Project Path="Example.Web/Example.Web.csproj" DefaultStartup="true" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
@@ -12,4 +15,6 @@
     <File Path="LICENSE" />
     <File Path="README.md" />
   </Folder>
+  <Project Path="BlazorComponents/BlazorComponents.csproj" />
+  <Project Path="BlazorComponents.Tests/BlazorComponents.Tests.csproj" />
 </Solution>

@@ -1,0 +1,42 @@
+@page "/script-helper"
+@using System.Text
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Script helper</PageTitle>
+
+<h1>Script helper</h1>
+
+<div class="mb-4">
+    <h5>SetFocus</h5>
+    <div class="input-group example-width">
+        <input id="name" class="form-control" placeholder="Name" />
+        <button class="btn btn-primary" @onclick="FocusAsync">Focus</button>
+    </div>
+</div>
+
+<div class="mb-4">
+    <h5>SaveAsFile / OpenNewWindow</h5>
+    <textarea class="form-control example-width mb-2" rows="4" @bind="content"></textarea>
+    <button class="btn btn-primary" @onclick="SaveAsync">Save as file</button>
+    <button class="btn btn-secondary" @onclick="OpenAsync">Open in new window</button>
+</div>
+
+<div class="mb-4">
+    <h5>HistoryBack / HistoryForward</h5>
+    <button class="btn btn-secondary" @onclick="BackAsync">Back</button>
+    <button class="btn btn-secondary" @onclick="ForwardAsync">Forward</button>
+</div>
+
+@code {
+    private string content = "Hello, BlazorComponents!";
+
+    private Task FocusAsync() => JSRuntime.SetFocus("name").AsTask();
+
+    private Task SaveAsync() => JSRuntime.SaveAsFile("example.txt", "text/plain", Encoding.UTF8.GetBytes(content)).AsTask();
+
+    private Task OpenAsync() => JSRuntime.OpenNewWindow("text/plain", Encoding.UTF8.GetBytes(content)).AsTask();
+
+    private Task BackAsync() => JSRuntime.HistoryBack().AsTask();
+
+    private Task ForwardAsync() => JSRuntime.HistoryForward().AsTask();
+}

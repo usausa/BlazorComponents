@@ -1,0 +1,47 @@
+@page "/file-drop-zone"
+
+<PageTitle>FileDropZone</PageTitle>
+
+<h1>FileDropZone</h1>
+
+<FileDropZone @ref="zone" class="example-drop example-width mb-3" Paste="true" tabindex="0">
+    <p>Drop images or text files here. Files can be pasted when the zone has the focus.</p>
+    <InputFile class="form-control" OnChange="OnChange" accept="image/*,.txt" multiple />
+</FileDropZone>
+
+<p>
+    <button class="btn btn-primary" @onclick="SelectAsync">Select files</button>
+</p>
+
+<table class="table example-width">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th class="text-end">Size</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var file in files)
+        {
+            <tr>
+                <td>@file.Name</td>
+                <td>@file.ContentType</td>
+                <td class="text-end">@file.Size.ToString("N0")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private FileDropZone zone = default!;
+
+    private IReadOnlyList<IBrowserFile> files = [];
+
+    private Task SelectAsync() => zone.OpenFilePickerAsync().AsTask();
+
+    private void OnChange(InputFileChangeEventArgs e)
+    {
+        files = e.GetMultipleFiles(100);
+    }
+}

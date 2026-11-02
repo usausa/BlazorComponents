@@ -1,0 +1,95 @@
+@page "/speech-synthesizer"
+
+<PageTitle>SpeechSynthesizer</PageTitle>
+
+<h1>SpeechSynthesizer</h1>
+
+<SpeechSynthesizer @ref="speech" Lang="@lang" Voice="@(string.IsNullOrEmpty(voice) ? null : voice)" Rate="rate" Pitch="pitch" Volume="volume" @bind-Speaking="speaking" />
+
+<div class="example-width">
+    <textarea class="form-control mb-3" rows="3" @bind="text"></textarea>
+
+    <div class="row mb-2">
+        <label class="col-3 col-form-label">Lang</label>
+        <div class="col-9">
+            <input class="form-control" @bind="lang" />
+        </div>
+    </div>
+    <div class="row mb-2">
+        <label class="col-3 col-form-label">Voice</label>
+        <div class="col-9">
+            <select class="form-select" @bind="voice">
+                <option value="">(Default for Lang)</option>
+                @foreach (var item in voices)
+                {
+                    <option value="@item.Name">@item.Name (@item.Lang@(item.LocalService ? string.Empty : ", remote"))</option>
+                }
+            </select>
+        </div>
+    </div>
+    <div class="row mb-2">
+        <label class="col-3 col-form-label">Rate @rate</label>
+        <div class="col-9">
+            <input class="form-range" type="range" min="0.5" max="2" step="0.1" @bind="rate" @bind:event="oninput" />
+        </div>
+    </div>
+    <div class="row mb-2">
+        <label class="col-3 col-form-label">Pitch @pitch</label>
+        <div class="col-9">
+            <input class="form-range" type="range" min="0" max="2" step="0.1" @bind="pitch" @bind:event="oninput" />
+        </div>
+    </div>
+    <div class="row mb-3">
+        <label class="col-3 col-form-label">Volume @volume</label>
+        <div class="col-9">
+            <input class="form-range" type="range" min="0" max="1" step="0.1" @bind="volume" @bind:event="oninput" />
+        </div>
+    </div>
+
+    <button class="btn btn-primary" @onclick="SpeakAsync">Speak</button>
+    <button class="btn btn-secondary" @onclick="CancelAsync">Cancel</button>
+
+    <p class="mt-3">
+        Speaking: @speaking<br />
+        Result: @result
+    </p>
+</div>
+
+@code {
+    private SpeechSynthesizer speech = default!;
+
+    private IReadOnlyList<SpeechVoice> voices = [];
+
+    private string text = "BlazorComponents の読み上げの例です。文ごとに区切って読み上げます。";
+
+    private string lang = "ja-JP";
+
+    private string voice = string.Empty;
+
+    private double rate = 1;
+
+    private double pitch = 1;
+
+    private double volume = 1;
+
+    private bool speaking;
+
+    private string result = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            voices = await speech.GetVoicesAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task SpeakAsync()
+    {
+        result = string.Empty;
+        result = await speech.SpeakAsync(text) ? "Completed" : "Canceled";
+    }
+
+    private Task CancelAsync() => speech.CancelAsync().AsTask();
+}

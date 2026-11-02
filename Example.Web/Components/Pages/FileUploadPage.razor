@@ -1,0 +1,102 @@
+@page "/file-upload"
+@inject UploadStore Store
+
+<PageTitle>FileUpload</PageTitle>
+
+<h1>FileUpload</h1>
+
+<div class="row mb-3 example-width">
+    <label class="col-3 col-form-label">Folder</label>
+    <div class="col-9">
+        <input class="form-control" @bind="folder" />
+    </div>
+</div>
+
+<FileUpload @ref="upload" class="example-drop example-width mb-3" Url="@($"api/upload/{folder}")" AllowFolders="true" Paste="true" tabindex="0"
+            @bind-Uploading="uploading" OnStarting="OnStarting" OnProgress="OnProgress" OnCompleted="OnCompleted">
+    <p>Drop files or folders here. Files can be pasted when the zone has the focus.</p>
+</FileUpload>
+
+<p>
+    <button class="btn btn-primary" @onclick="SelectFilesAsync">Select files</button>
+    <button class="btn btn-primary" @onclick="SelectFolderAsync">Select folder</button>
+    <button class="btn btn-secondary" disabled="@(!uploading)" @onclick="CancelAsync">Cancel</button>
+</p>
+
+@if (progress is not null)
+{
+    <div class="example-width mb-3">
+        <div class="progress mb-1">
+            <div class="progress-bar" style="width: @(Percent)%">@(Percent)%</div>
+        </div>
+        <div>@progress.CompletedFiles / @progress.TotalFiles files, @progress.LoadedBytes.ToString("N0") / @progress.TotalBytes.ToString("N0") bytes</div>
+        <div class="text-truncate">@progress.CurrentPath</div>
+    </div>
+}
+
+<p>
+    Starting: @starting<br />
+    Result: @completed
+</p>
+
+<h5>Received by the server <button class="btn btn-sm btn-outline-secondary ms-2" @onclick="Store.Clear">Clear</button></h5>
+
+<table class="table example-width">
+    <thead>
+        <tr>
+            <th>Folder</th>
+            <th>Path</th>
+            <th class="text-end">Size</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var entry in Store.Entries)
+        {
+            <tr>
+                <td>@entry.Folder</td>
+                <td>@entry.Path</td>
+                <td class="text-end">@entry.Size.ToString("N0")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private FileUpload upload = default!;
+
+    private string folder = "inbox";
+
+    private bool uploading;
+
+    private string starting = string.Empty;
+
+    private string completed = string.Empty;
+
+    private FileUploadProgress? progress;
+
+    private long Percent => (progress is null) || (progress.TotalBytes == 0) ? 0 : progress.LoadedBytes * 100 / progress.TotalBytes;
+
+    private Task SelectFilesAsync() => upload.OpenFilePickerAsync().AsTask();
+
+    private Task SelectFolderAsync() => upload.OpenFolderPickerAsync().AsTask();
+
+    private Task CancelAsync() => upload.CancelAsync().AsTask();
+
+    private void OnStarting(FileUploadStartingEventArgs e)
+    {
+        starting = $"{string.Join(", ", e.Entries.Select(static x => x.IsFolder ? $"{x.Name}/" : x.Name))} ({e.FileCount} files, {e.TotalBytes:N0} bytes)";
+        completed = string.Empty;
+        progress = null;
+    }
+
+    private void OnProgress(FileUploadProgress e)
+    {
+        progress = e;
+    }
+
+    private void OnCompleted(FileUploadResult e)
+    {
+        var errors = string.Join(", ", e.Errors.Select(static x => $"{x.Path} ({x.Status})"));
+        completed = $"{e.Succeeded} succeeded, {e.Failed} failed{(e.Canceled ? ", canceled" : string.Empty)}{(errors.Length > 0 ? $": {errors}" : string.Empty)}";
+    }
+}

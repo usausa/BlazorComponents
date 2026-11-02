@@ -1,0 +1,42 @@
+@page "/media-query"
+
+<PageTitle>MediaQuery</PageTitle>
+
+<h1>MediaQuery</h1>
+
+<MediaQuery Query="(prefers-color-scheme: dark)" @bind-Matches="dark" />
+<MediaQuery Query="(max-width: 640.98px)" @bind-Matches="narrow" />
+<MediaQuery Query="(orientation: portrait)" @bind-Matches="portrait" />
+
+<p>Resize the window or change the color scheme of the OS.</p>
+
+<table class="table example-width">
+    <thead>
+        <tr>
+            <th>Query</th>
+            <th>Matches</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>(prefers-color-scheme: dark)</code></td>
+            <td>@dark</td>
+        </tr>
+        <tr>
+            <td><code>(max-width: 640.98px)</code></td>
+            <td>@narrow</td>
+        </tr>
+        <tr>
+            <td><code>(orientation: portrait)</code></td>
+            <td>@portrait</td>
+        </tr>
+    </tbody>
+</table>
+
+@code {
+    private bool dark;
+
+    private bool narrow;
+
+    private bool portrait;
+}
