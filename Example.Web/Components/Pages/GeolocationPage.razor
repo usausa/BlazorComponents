@@ -1,0 +1,42 @@
+@page "/geolocation"
+@inject IGeolocation Geolocation
+
+<PageTitle>Geolocation</PageTitle>
+
+<h1>Geolocation</h1>
+
+<div class="example-width">
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="high-accuracy" @bind="highAccuracy" />
+        <label class="form-check-label" for="high-accuracy">High accuracy</label>
+    </div>
+    <div class="row mb-3">
+        <label class="col-3 col-form-label">Timeout (s)</label>
+        <div class="col-9">
+            <input class="form-control" type="number" min="0" @bind="timeout" />
+        </div>
+    </div>
+
+    <button class="btn btn-primary" @onclick="GetLocationAsync">Get location</button>
+
+    <p class="mt-3">
+        Status: @result?.Status<br />
+        Latitude: @result?.Position?.Latitude<br />
+        Longitude: @result?.Position?.Longitude<br />
+        Accuracy: @result?.Position?.Accuracy
+    </p>
+</div>
+
+@code {
+    private bool highAccuracy;
+
+    private int timeout = 5;
+
+    private GeolocationResult? result;
+
+    private async Task GetLocationAsync()
+    {
+        result = null;
+        result = await Geolocation.GetLocationAsync(highAccuracy, timeout > 0 ? TimeSpan.FromSeconds(timeout) : null);
+    }
+}

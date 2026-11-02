@@ -1,3 +1,5 @@
+using BlazorComponents;
+
 using Example.Web;
 using Example.Web.Components;
 
@@ -10,6 +12,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton(new UploadStore());
+builder.Services.AddBlazorComponents();
 
 var app = builder.Build();
 

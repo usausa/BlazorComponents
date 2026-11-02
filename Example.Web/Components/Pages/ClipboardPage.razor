@@ -1,0 +1,26 @@
+@page "/clipboard"
+@inject IClipboard Clipboard
+
+<PageTitle>Clipboard</PageTitle>
+
+<h1>Clipboard</h1>
+
+<div class="example-width">
+    <div class="input-group mb-2">
+        <input class="form-control" @bind="text" />
+        <button class="btn btn-primary" @onclick="CopyAsync">Copy</button>
+    </div>
+    <p>Result: @result</p>
+    <textarea class="form-control" rows="3" placeholder="Paste here"></textarea>
+</div>
+
+@code {
+    private string text = "https://example.com/invitation/12345";
+
+    private string result = string.Empty;
+
+    private async Task CopyAsync()
+    {
+        result = await Clipboard.SetTextAsync(text) ? "Copied" : "Not copied";
+    }
+}

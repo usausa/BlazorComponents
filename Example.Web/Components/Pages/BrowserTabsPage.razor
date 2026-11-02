@@ -1,0 +1,81 @@
+@page "/browser-tabs"
+@implements IAsyncDisposable
+@inject IBrowserTabs Tabs
+
+<PageTitle>BrowserTabs</PageTitle>
+
+<h1>BrowserTabs</h1>
+
+<div class="example-width">
+    <div class="input-group mb-2">
+        <input class="form-control" @bind="message" />
+        <button class="btn btn-primary" @onclick="TellAsync">Tell</button>
+    </div>
+    <ul>
+        @foreach (var item in received)
+        {
+            <li>@item</li>
+        }
+    </ul>
+
+    <p>
+        <button class="btn btn-primary" @onclick="RunLockedAsync">Run locked</button>
+        <button class="btn btn-secondary" @onclick="RunLockedWithTimeoutAsync">Run locked (timeout 1 s)</button>
+    </p>
+    <ul>
+        @foreach (var item in log)
+        {
+            <li>@item</li>
+        }
+    </ul>
+</div>
+
+@code {
+    private const string ChannelName = "example-channel";
+
+    private const string LockName = "example-lock";
+
+    private readonly List<string> received = [];
+
+    private readonly List<string> log = [];
+
+    private IAsyncDisposable? listening;
+
+    private string message = "Hello";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            listening = await Tabs.ListenAsync(ChannelName, OnReceivedAsync);
+        }
+    }
+
+    public ValueTask DisposeAsync() =>
+        listening?.DisposeAsync() ?? ValueTask.CompletedTask;
+
+    private Task TellAsync() => Tabs.TellAsync(ChannelName, message).AsTask();
+
+    private Task RunLockedAsync() => RunAsync(null);
+
+    private Task RunLockedWithTimeoutAsync() => RunAsync(TimeSpan.FromSeconds(1));
+
+    private async Task RunAsync(TimeSpan? timeout)
+    {
+        log.Add($"{DateTime.Now:HH:mm:ss.f} requested");
+        await Tabs.RunLockedAsync(LockName, async () =>
+        {
+            log.Add($"{DateTime.Now:HH:mm:ss.f} running");
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(3000);
+        }, timeout);
+        log.Add($"{DateTime.Now:HH:mm:ss.f} done");
+    }
+
+    private Task OnReceivedAsync(string value) =>
+        InvokeAsync(() =>
+        {
+            received.Add(value);
+            StateHasChanged();
+        });
+}

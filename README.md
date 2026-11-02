@@ -13,9 +13,13 @@ Component library for Blazor applications.
 * `MediaQuery` — bind the result of a CSS media query
 * `HotKey` — call a method on a keyboard shortcut
 * `NativeDialog` — open and close a native `<dialog>` by binding
-* `SpeechSynthesizer` — read text aloud with the browser's speech synthesis
 * `FileDropZone` — pass dropped or pasted files to the `<InputFile>` inside it
 * `FileUpload` — upload dropped, pasted or picked files and folders to a URL from the browser
+* `IScreen` — keep the screen on and keep the page fullscreen from code
+* `ISpeaker` — play tones and read text aloud from code
+* `IBrowserTabs` — run actions one tab at a time and send messages to the other tabs
+* `IClipboard` — copy text to the clipboard from code
+* `IGeolocation` — get the current position of the device from code
 
 ## Usage
 
@@ -75,20 +79,6 @@ await module.DisposeAsync();
 
 `OnClose` receives the `value` of the button that closed the dialog.
 
-### SpeechSynthesizer
-
-```razor
-<SpeechSynthesizer @ref="speech" Lang="ja-JP" Rate="1.1" @bind-Speaking="speaking" />
-```
-
-```csharp
-var completed = await speech.SpeakAsync("新しい注文です。");
-await speech.CancelAsync();
-var voices = await speech.GetVoicesAsync();
-```
-
-`SpeakAsync` returns `true` when the text is read to the end, and `false` when it is canceled or cannot be read. Without `Voice`, a voice on the device is preferred for `Lang`. The browser speaks only after the first click on the page.
-
 ### FileDropZone
 
 ```razor
@@ -145,3 +135,85 @@ app.MapPost("/api/upload/{**folder}", async (string? folder, [FromForm] string r
 ```
 
 For large files, raise the request size limits of the server: Kestrel's `MaxRequestBodySize` (about 28.6 MB by default; over it, the connection is closed and the status is `0`) and `FormOptions.MultipartBodyLengthLimit` (128 MB by default).
+
+### Services
+
+```csharp
+builder.Services.AddBlazorComponents();
+```
+
+`AddBlazorComponents()` registers the services of this library, `IScreen`, `ISpeaker`, `IBrowserTabs`, `IClipboard` and `IGeolocation`, as scoped services, so each circuit of Blazor Server has its own. Inject them into components or other services. Call their methods after the first render or in an event handler, because JavaScript is not available while prerendering, and update a component from their events, such as `ScreenKeptOnChanged`, with `InvokeAsync(StateHasChanged)`. When prerendered WebAssembly components inject the services, call `AddBlazorComponents()` in the server project too. The components need no registration.
+
+### IScreen
+
+```csharp
+[Inject]
+private IScreen Screen { get; set; } = default!;
+
+protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+    if (firstRender)
+    {
+        await Screen.KeepScreenOnAsync(true);
+        await Screen.KeepFullscreenAsync(true);
+    }
+}
+```
+
+`KeepScreenOnAsync(true)` keeps the screen on with a screen wake lock. The browser releases the lock while the page is hidden, and it is taken again when the page is shown. `IsScreenKeptOn` and `ScreenKeptOnChanged` tell whether the screen is kept on now. It is not on an insecure origin (`http` other than `localhost`), on a browser without the Screen Wake Lock API, or when the device refuses it, for example in battery saver.
+
+`KeepFullscreenAsync(true)` makes the page fullscreen. The browser allows it only right after a user operation, so when the page is not fullscreen, it becomes fullscreen at the next touch or click. `KeepFullscreenAsync(false)` stops it and leaves fullscreen.
+
+### ISpeaker
+
+```csharp
+await Speaker.PrepareAsync();
+var played = await Speaker.PlayAsync(new Tone(880, 200), new Tone(1175, 200, 50));
+var completed = await Speaker.SpeakAsync("新しい注文です。", new SpeechOptions { Lang = "ja-JP", Rate = 1.1 });
+await Speaker.CancelAsync();
+var voices = await Speaker.GetVoicesAsync();
+```
+
+The browser outputs sound only after the user operates the page. `PrepareAsync()` sets up the output, and `IsReady` becomes `true` when sound can be played: at once on a browser that allows autoplay or on a page the user has already operated, otherwise at the first touch, click or key press. `ReadyChanged` is raised when it changes, so a kiosk can ask the user to touch the screen until then. The other methods set up the output on the first call, too.
+
+`PlayAsync` plays sine tones one after another. `Tone` is the frequency in Hz, the duration in milliseconds, and the delay in milliseconds after the previous tone. It returns `true` when the tones are played to the end, and `false` when sound cannot be played yet or the tones are canceled.
+
+`SpeakAsync` reads the text sentence by sentence, and returns `true` when it is read to the end and `false` when it is canceled or cannot be read. `SpeechOptions` sets `Lang`, `Voice`, `Rate`, `Pitch` and `Volume` for each call; without `Voice`, a voice on the device is preferred for `Lang`. `IsSpeaking` and `SpeakingChanged` tell whether text is being read. `CancelAsync()` stops both the speech and the tones.
+
+### IBrowserTabs
+
+```csharp
+var token = await Tabs.RunLockedAsync("token-refresh", RefreshAsync, TimeSpan.FromSeconds(40));
+
+listening = await Tabs.ListenAsync("session", reason => InvokeAsync(() => OnSessionEnded(reason)));
+await Tabs.TellAsync("session", "logged-out");
+await listening.DisposeAsync();
+```
+
+`RunLockedAsync` runs the action while the tab holds the lock of the name, so the actions with the same name run one at a time in all the tabs of the origin, including in the same tab. It returns the result of the action, and an exception of the action is thrown as it is. The browser releases the lock when the tab that holds it is closed or crashes, so without `timeout` the action waits until the lock is free. With `timeout`, the action runs without the lock when the lock is not taken in that time, and it also runs without the lock on a browser without the Web Locks API. In every case the action runs once.
+
+`TellAsync` sends a string to the other tabs of the origin, and `ListenAsync` receives the strings sent with the name until the returned object is disposed. The tab that tells does not receive its own message. On a browser without `BroadcastChannel`, nothing is sent or received.
+
+### IClipboard
+
+```csharp
+var copied = await Clipboard.SetTextAsync(url);
+```
+
+`SetTextAsync` writes the text with the Clipboard API of the browser. When the API is not available, as on an insecure origin (`http` other than `localhost`), or the browser refuses it, the text is copied through a hidden text area instead. It returns `true` when the text is copied, and `false` when it is not.
+
+Browsers allow writing to the clipboard only during or shortly after a user operation, so call `SetTextAsync` from a click or key event handler. With Blazor WebAssembly, the text is written while the event is handled. With Blazor Server, the handler runs after a round trip to the server; Chrome, Edge and Firefox allow it, but Safari may refuse it.
+
+### IGeolocation
+
+```csharp
+var result = await Geolocation.GetLocationAsync(highAccuracy: true, timeout: TimeSpan.FromSeconds(3));
+if (result.Position is { } position)
+{
+    Record(position.Latitude, position.Longitude, position.Accuracy);
+}
+```
+
+`GetLocationAsync` gets the current position of the device: the latitude and the longitude in degrees, and the accuracy in meters. A cached position is not used. `Status` tells the result: `Success`, `Denied` when the user or the browser denies it, `Unavailable` when the device cannot tell the position, `Timeout`, and `NotSupported` on a browser without the Geolocation API or on an insecure origin (`http` other than `localhost`). `Position` is `null` unless `Status` is `Success`.
+
+`timeout` limits the whole wait, including the time while the browser asks the user for the permission, so the caller can go on without the position after a few seconds. Without `timeout`, it waits until the position is taken. `highAccuracy` asks for a more accurate position, for example with GPS, which can take longer.

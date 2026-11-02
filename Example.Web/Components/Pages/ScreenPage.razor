@@ -1,0 +1,38 @@
+@page "/screen"
+@implements IDisposable
+@inject IScreen Screen
+
+<PageTitle>Screen</PageTitle>
+
+<h1>Screen</h1>
+
+<div class="example-width">
+    <p>
+        <button class="btn btn-primary" @onclick="KeepScreenOnAsync">Keep screen on</button>
+        <button class="btn btn-secondary" @onclick="ReleaseScreenAsync">Release</button>
+    </p>
+    <p>
+        <button class="btn btn-primary" @onclick="KeepFullscreenAsync">Keep fullscreen</button>
+        <button class="btn btn-secondary" @onclick="ExitFullscreenAsync">Exit fullscreen</button>
+    </p>
+    <p>IsScreenKeptOn: @Screen.IsScreenKeptOn</p>
+</div>
+
+@code {
+    protected override void OnInitialized() =>
+        Screen.ScreenKeptOnChanged += OnScreenKeptOnChanged;
+
+    public void Dispose() =>
+        Screen.ScreenKeptOnChanged -= OnScreenKeptOnChanged;
+
+    private Task KeepScreenOnAsync() => Screen.KeepScreenOnAsync(true).AsTask();
+
+    private Task ReleaseScreenAsync() => Screen.KeepScreenOnAsync(false).AsTask();
+
+    private Task KeepFullscreenAsync() => Screen.KeepFullscreenAsync(true).AsTask();
+
+    private Task ExitFullscreenAsync() => Screen.KeepFullscreenAsync(false).AsTask();
+
+    private void OnScreenKeptOnChanged(object? sender, EventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
+}

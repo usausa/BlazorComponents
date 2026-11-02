@@ -1,12 +1,16 @@
-@page "/speech-synthesizer"
+@page "/speaker"
+@implements IDisposable
+@inject ISpeaker Speaker
 
-<PageTitle>SpeechSynthesizer</PageTitle>
+<PageTitle>Speaker</PageTitle>
 
-<h1>SpeechSynthesizer</h1>
-
-<SpeechSynthesizer @ref="speech" Lang="@lang" Voice="@(string.IsNullOrEmpty(voice) ? null : voice)" Rate="rate" Pitch="pitch" Volume="volume" @bind-Speaking="speaking" />
+<h1>Speaker</h1>
 
 <div class="example-width">
+    <p>
+        <button class="btn btn-primary" @onclick="ChimeAsync">Chime</button>
+    </p>
+
     <textarea class="form-control mb-3" rows="3" @bind="text"></textarea>
 
     <div class="row mb-2">
@@ -50,14 +54,13 @@
     <button class="btn btn-secondary" @onclick="CancelAsync">Cancel</button>
 
     <p class="mt-3">
-        Speaking: @speaking<br />
+        IsReady: @Speaker.IsReady<br />
+        IsSpeaking: @Speaker.IsSpeaking<br />
         Result: @result
     </p>
 </div>
 
 @code {
-    private SpeechSynthesizer speech = default!;
-
     private IReadOnlyList<SpeechVoice> voices = [];
 
     private string text = "BlazorComponents の読み上げの例です。文ごとに区切って読み上げます。";
@@ -72,24 +75,45 @@
 
     private double volume = 1;
 
-    private bool speaking;
-
     private string result = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        Speaker.ReadyChanged += OnSpeakerChanged;
+        Speaker.SpeakingChanged += OnSpeakerChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            voices = await speech.GetVoicesAsync();
+            await Speaker.PrepareAsync();
+            voices = await Speaker.GetVoicesAsync();
             StateHasChanged();
         }
+    }
+
+    public void Dispose()
+    {
+        Speaker.ReadyChanged -= OnSpeakerChanged;
+        Speaker.SpeakingChanged -= OnSpeakerChanged;
+    }
+
+    private async Task ChimeAsync()
+    {
+        result = string.Empty;
+        result = await Speaker.PlayAsync(new Tone(880, 200), new Tone(1175, 200, 50)) ? "Played" : "Not played";
     }
 
     private async Task SpeakAsync()
     {
         result = string.Empty;
-        result = await speech.SpeakAsync(text) ? "Completed" : "Canceled";
+        var options = new SpeechOptions { Lang = lang, Voice = string.IsNullOrEmpty(voice) ? null : voice, Rate = rate, Pitch = pitch, Volume = volume };
+        result = await Speaker.SpeakAsync(text, options) ? "Completed" : "Canceled";
     }
 
-    private Task CancelAsync() => speech.CancelAsync().AsTask();
+    private Task CancelAsync() => Speaker.CancelAsync().AsTask();
+
+    private void OnSpeakerChanged(object? sender, EventArgs e) =>
+        _ = InvokeAsync(StateHasChanged);
 }
