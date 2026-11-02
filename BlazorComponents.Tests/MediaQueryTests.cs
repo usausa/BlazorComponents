@@ -2,7 +2,7 @@ namespace BlazorComponents;
 
 public sealed class MediaQueryTests : BunitContext
 {
-    private const string ModulePath = "./_content/BlazorComponents/media-query.js";
+    private const string ModulePath = "./_content/Components.Blazor/media-query.js";
 
     public MediaQueryTests()
     {

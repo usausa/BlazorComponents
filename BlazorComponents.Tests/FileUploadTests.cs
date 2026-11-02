@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 public sealed class FileUploadTests : BunitContext
 {
-    private const string ModulePath = "./_content/BlazorComponents/file-upload.js";
+    private const string ModulePath = "./_content/Components.Blazor/file-upload.js";
 
     public FileUploadTests()
     {

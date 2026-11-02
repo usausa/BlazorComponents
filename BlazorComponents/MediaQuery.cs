@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 public sealed class MediaQuery : ComponentBase, IAsyncDisposable
 {
-    private const string ModulePath = "./_content/BlazorComponents/media-query.js";
+    private const string ModulePath = "./_content/Components.Blazor/media-query.js";
 
     private ScriptModule? module;
 

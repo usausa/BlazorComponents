@@ -10,8 +10,8 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <PackageId>BlazorComponents</PackageId>
-    <Title>BlazorComponents</Title>
+    <PackageId>Components.Blazor</PackageId>
+    <Title>Components.Blazor</Title>
     <Description>Components for Blazor application</Description>
     <PackageTags>blazor components</PackageTags>
   </PropertyGroup>

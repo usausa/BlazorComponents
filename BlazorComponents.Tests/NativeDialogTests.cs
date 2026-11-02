@@ -2,7 +2,7 @@ namespace BlazorComponents;
 
 public sealed class NativeDialogTests : BunitContext
 {
-    private const string ModulePath = "./_content/BlazorComponents/native-dialog.js";
+    private const string ModulePath = "./_content/Components.Blazor/native-dialog.js";
 
     public NativeDialogTests()
     {

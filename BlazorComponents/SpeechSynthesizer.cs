@@ -7,7 +7,7 @@ using Microsoft.JSInterop;
 
 public sealed class SpeechSynthesizer : ComponentBase, IAsyncDisposable
 {
-    private const string ModulePath = "./_content/BlazorComponents/speech-synthesizer.js";
+    private const string ModulePath = "./_content/Components.Blazor/speech-synthesizer.js";
 
     private ScriptModule? module;
 

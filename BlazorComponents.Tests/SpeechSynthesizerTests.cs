@@ -2,7 +2,7 @@ namespace BlazorComponents;
 
 public sealed class SpeechSynthesizerTests : BunitContext
 {
-    private const string ModulePath = "./_content/BlazorComponents/speech-synthesizer.js";
+    private const string ModulePath = "./_content/Components.Blazor/speech-synthesizer.js";
 
     public SpeechSynthesizerTests()
     {

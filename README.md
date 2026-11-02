@@ -2,9 +2,7 @@
 
 | Package | Info |
 |:-|:-|
-| BlazorComponents | [![NuGet](https://img.shields.io/nuget/v/BlazorComponents.svg)](https://www.nuget.org/packages/BlazorComponents) |
-| BlazorComponents.Bootstrap | [![NuGet](https://img.shields.io/nuget/v/BlazorComponents.Bootstrap.svg)](https://www.nuget.org/packages/BlazorComponents.Bootstrap) |
-| BlazorComponents.QrCode | [![NuGet](https://img.shields.io/nuget/v/BlazorComponents.QrCode.svg)](https://www.nuget.org/packages/BlazorComponents.QrCode) |
+| Components.Blazor | [![NuGet](https://img.shields.io/nuget/v/Components.Blazor.svg)](https://www.nuget.org/packages/Components.Blazor) |
 
 Component library for Blazor applications.
 
@@ -24,7 +22,7 @@ Component library for Blazor applications.
 ### Script helper extensions
 
 ```html
-<script src="_content/BlazorComponents/script.min.js"></script>
+<script src="_content/Components.Blazor/script.min.js"></script>
 ```
 
 ```csharp

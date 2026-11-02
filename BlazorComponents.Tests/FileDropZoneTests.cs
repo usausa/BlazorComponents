@@ -2,7 +2,7 @@ namespace BlazorComponents;
 
 public sealed class FileDropZoneTests : BunitContext
 {
-    private const string ModulePath = "./_content/BlazorComponents/file-drop-zone.js";
+    private const string ModulePath = "./_content/Components.Blazor/file-drop-zone.js";
 
     public FileDropZoneTests()
     {

@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 
 public sealed class HotKey : ComponentBase, IAsyncDisposable
 {
-    private const string ModulePath = "./_content/BlazorComponents/hot-key.js";
+    private const string ModulePath = "./_content/Components.Blazor/hot-key.js";
 
     private ScriptModule? module;
 

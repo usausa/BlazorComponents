@@ -2,7 +2,7 @@ namespace BlazorComponents;
 
 public sealed class HotKeyTests : BunitContext
 {
-    private const string ModulePath = "./_content/BlazorComponents/hot-key.js";
+    private const string ModulePath = "./_content/Components.Blazor/hot-key.js";
 
     public HotKeyTests()
     {
