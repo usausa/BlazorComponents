@@ -31,6 +31,7 @@ public sealed class ScriptModuleTests
         Assert.Single(runtime.Imports);
         Assert.Equal(ModulePath, runtime.ImportPaths[0]);
         Assert.Equal("first,second", string.Join(',', script.Calls));
+        Assert.Equal<CancellationToken?>([null, null], script.Tokens);
 
         await module.DisposeAsync();
     }
@@ -125,6 +126,23 @@ public sealed class ScriptModuleTests
     }
 
     [Fact]
+    public async Task PassesCancellationTokenToModule()
+    {
+        var runtime = new FakeRuntime();
+        var module = new ScriptModule(runtime, ModulePath);
+        using var source = new CancellationTokenSource();
+
+        var queued = module.InvokeVoidAsync("first", source.Token).AsTask();
+        runtime.CompleteImport(0);
+        await WaitAsync(queued);
+        await module.InvokeVoidAsync("second", source.Token);
+
+        Assert.Equal<CancellationToken?>([source.Token, source.Token], runtime.Modules[0].Tokens);
+
+        await module.DisposeAsync();
+    }
+
+    [Fact]
     public async Task CallAfterDisposeThrows()
     {
         var module = new ScriptModule(new FakeRuntime(), ModulePath);
@@ -181,22 +199,28 @@ public sealed class ScriptModuleTests
 
         public List<string> Calls { get; } = [];
 
+        public List<CancellationToken?> Tokens { get; } = [];
+
         public Task Disposal => disposal.Task;
 
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args)
-        {
-            Calls.Add(identifier);
-            invoked?.Invoke(identifier);
-            return new ValueTask<TValue>(result is TValue value ? value : default!);
-        }
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            Invoke<TValue>(identifier, null);
 
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
-            InvokeAsync<TValue>(identifier, args);
+            Invoke<TValue>(identifier, cancellationToken);
 
         public ValueTask DisposeAsync()
         {
             disposal.TrySetResult();
             return disposeException is null ? ValueTask.CompletedTask : ValueTask.FromException(disposeException);
+        }
+
+        private ValueTask<TValue> Invoke<TValue>(string identifier, CancellationToken? cancellationToken)
+        {
+            Calls.Add(identifier);
+            Tokens.Add(cancellationToken);
+            invoked?.Invoke(identifier);
+            return new ValueTask<TValue>(result is TValue value ? value : default!);
         }
     }
 }

@@ -18,7 +18,8 @@ public sealed class ServiceCollectionExtensionsTests : BunitContext
             (typeof(ISpeaker), typeof(Speaker)),
             (typeof(IBrowserTabs), typeof(BrowserTabs)),
             (typeof(IClipboard), typeof(Clipboard)),
-            (typeof(IGeolocation), typeof(Geolocation))
+            (typeof(IGeolocation), typeof(Geolocation)),
+            (typeof(IFileSystemAccess), typeof(FileSystemAccess))
         ];
         Assert.Equal(expected, services.Select(static d => (d.ServiceType, d.ImplementationType!)));
         Assert.All(services, static d => Assert.Equal(ServiceLifetime.Scoped, d.Lifetime));
@@ -34,5 +35,6 @@ public sealed class ServiceCollectionExtensionsTests : BunitContext
         Assert.IsType<BrowserTabs>(Services.GetRequiredService<IBrowserTabs>());
         Assert.IsType<Clipboard>(Services.GetRequiredService<IClipboard>());
         Assert.IsType<Geolocation>(Services.GetRequiredService<IGeolocation>());
+        Assert.IsType<FileSystemAccess>(Services.GetRequiredService<IFileSystemAccess>());
     }
 }

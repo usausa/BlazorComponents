@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IBrowserTabs, BrowserTabs>();
         services.TryAddScoped<IClipboard, Clipboard>();
         services.TryAddScoped<IGeolocation, Geolocation>();
+        services.TryAddScoped<IFileSystemAccess, FileSystemAccess>();
         return services;
     }
 }

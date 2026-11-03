@@ -20,6 +20,7 @@ Component library for Blazor applications.
 * `IBrowserTabs` — run actions one tab at a time and send messages to the other tabs
 * `IClipboard` — copy text to the clipboard from code
 * `IGeolocation` — get the current position of the device from code
+* `IFileSystemAccess` — save a file where the user picks, or download it, from code
 
 ## Usage
 
@@ -41,8 +42,11 @@ await JSRuntime.HistoryBack();
 ```csharp
 module = new ScriptModule(JSRuntime, "./js/chart.js");
 await module.InvokeVoidAsync("draw", element, values);
+var answer = await module.InvokeAsync<string>("ask", cancellationToken, question);
 await module.DisposeAsync();
 ```
+
+As with `IJSObjectReference`, a call with a `CancellationToken` waits without the default timeout of JavaScript calls.
 
 ### MediaQuery
 
@@ -142,7 +146,7 @@ For large files, raise the request size limits of the server: Kestrel's `MaxRequ
 builder.Services.AddBlazorComponents();
 ```
 
-`AddBlazorComponents()` registers the services of this library, `IScreen`, `ISpeaker`, `IBrowserTabs`, `IClipboard` and `IGeolocation`, as scoped services, so each circuit of Blazor Server has its own. Inject them into components or other services. Call their methods after the first render or in an event handler, because JavaScript is not available while prerendering, and update a component from their events, such as `ScreenKeptOnChanged`, with `InvokeAsync(StateHasChanged)`. When prerendered WebAssembly components inject the services, call `AddBlazorComponents()` in the server project too. The components need no registration.
+`AddBlazorComponents()` registers the services of this library, `IScreen`, `ISpeaker`, `IBrowserTabs`, `IClipboard`, `IGeolocation` and `IFileSystemAccess`, as scoped services, so each circuit of Blazor Server has its own. Inject them into components or other services. Call their methods after the first render or in an event handler, because JavaScript is not available while prerendering, and update a component from their events, such as `ScreenKeptOnChanged`, with `InvokeAsync(StateHasChanged)`. When prerendered WebAssembly components inject the services, call `AddBlazorComponents()` in the server project too. The components need no registration.
 
 ### IScreen
 
@@ -217,3 +221,21 @@ if (result.Position is { } position)
 `GetLocationAsync` gets the current position of the device: the latitude and the longitude in degrees, and the accuracy in meters. A cached position is not used. `Status` tells the result: `Success`, `Denied` when the user or the browser denies it, `Unavailable` when the device cannot tell the position, `Timeout`, and `NotSupported` on a browser without the Geolocation API or on an insecure origin (`http` other than `localhost`). `Position` is `null` unless `Status` is `Success`.
 
 `timeout` limits the whole wait, including the time while the browser asks the user for the permission, so the caller can go on without the position after a few seconds. Without `timeout`, it waits until the position is taken. `highAccuracy` asks for a more accurate position, for example with GPS, which can take longer.
+
+### IFileSystemAccess
+
+```csharp
+var result = await FileSystemAccess.SaveAsync("report.pdf", "application/pdf", bytes);
+var result = await FileSystemAccess.SaveAsync("report.pdf", "application/pdf", stream);
+var result = await FileSystemAccess.SaveAsync("report.pdf", "application/pdf", new Uri("files/report.pdf", UriKind.Relative));
+```
+
+`SaveAsync` lets the user pick where to save the file with the File System Access API, suggesting the file name and the file type from its extension and `contentType`. It returns `Saved` when the file is written, and `Canceled` when the user closes the picker. When the picker is not available, as on Firefox and Safari, or the browser refuses it, the file is downloaded, and it returns `Downloaded`.
+
+Bytes and a stream are sent to the browser only after the user picks where to save, and written as they arrive, so the browser does not hold the whole file; nothing is sent when the user closes the picker. A stream is read from its current position and is not disposed. A download, without the picker, needs the whole file in the browser, as `SaveAsFile` does.
+
+For large files, such as 250 MB or more, pass the URL of an endpoint that returns the file. The browser fetches it after the user picks and writes it as it arrives, or downloads it from the URL when the picker is not available, so the file goes neither through the circuit nor into memory. The URL must be on the same origin as the page, because browsers do not download from other origins by a link.
+
+`SaveAsync` waits while the user picks, without the default timeout of JavaScript calls (one minute on Blazor Server); pass `cancellationToken` to stop waiting.
+
+Browsers show the picker only shortly after a user operation, so call `SaveAsync` from a click or key event handler with the bytes or the stream at hand. With Blazor Server, the handler runs after a round trip to the server; when preparing the bytes takes more than a few seconds, the picker is refused and the file is downloaded. A stream and a URL are read only after the user picks, so open them first and make the content while reading.

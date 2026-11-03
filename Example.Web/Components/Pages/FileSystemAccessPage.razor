@@ -1,0 +1,30 @@
+@page "/file-system-access"
+@using System.Text
+@inject IFileSystemAccess FileSystemAccess
+
+<PageTitle>FileSystemAccess</PageTitle>
+
+<h1>FileSystemAccess</h1>
+
+<div class="example-width">
+    <textarea class="form-control mb-2" rows="4" @bind="content"></textarea>
+    <button class="btn btn-primary" @onclick="SaveAsync">Save</button>
+    <button class="btn btn-secondary" @onclick="SaveUrlAsync">Save URL (favicon.png)</button>
+    <p class="mt-2">Result: @result</p>
+</div>
+
+@code {
+    private string content = "The quick brown fox jumps over the lazy dog.";
+
+    private string result = string.Empty;
+
+    private async Task SaveAsync()
+    {
+        result = (await FileSystemAccess.SaveAsync("example.txt", "text/plain", Encoding.UTF8.GetBytes(content))).ToString();
+    }
+
+    private async Task SaveUrlAsync()
+    {
+        result = (await FileSystemAccess.SaveAsync("favicon.png", "image/png", new Uri("favicon.png", UriKind.Relative))).ToString();
+    }
+}

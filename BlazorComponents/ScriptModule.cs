@@ -33,29 +33,14 @@ public sealed class ScriptModule : IAsyncDisposable
     public async ValueTask InvokeVoidAsync(string identifier, params object?[]? args) =>
         await InvokeAsync<IJSVoidResult>(identifier, args).ConfigureAwait(false);
 
-    public ValueTask<TValue> InvokeAsync<[DynamicallyAccessedMembers(JsonSerialized)] TValue>(string identifier, params object?[]? args)
-    {
-        IJSObjectReference? loaded;
-        lock (sync)
-        {
-            ObjectDisposedException.ThrowIf(disposed, this);
+    public async ValueTask InvokeVoidAsync(string identifier, CancellationToken cancellationToken, params object?[]? args) =>
+        await InvokeAsync<IJSVoidResult>(identifier, cancellationToken, args).ConfigureAwait(false);
 
-            loaded = module;
-            if (loaded is null)
-            {
-                var call = new PendingCall<TValue>(identifier, args);
-                pending.Add(call);
-                if ((loading is null) || loading.IsCompleted)
-                {
-                    loading = LoadAsync();
-                }
+    public ValueTask<TValue> InvokeAsync<[DynamicallyAccessedMembers(JsonSerialized)] TValue>(string identifier, params object?[]? args) =>
+        InvokeCoreAsync<TValue>(identifier, null, args);
 
-                return new ValueTask<TValue>(call.Completion);
-            }
-        }
-
-        return loaded.InvokeAsync<TValue>(identifier, args);
-    }
+    public ValueTask<TValue> InvokeAsync<[DynamicallyAccessedMembers(JsonSerialized)] TValue>(string identifier, CancellationToken cancellationToken, params object?[]? args) =>
+        InvokeCoreAsync<TValue>(identifier, cancellationToken, args);
 
     public ValueTask DisposeAsync()
     {
@@ -82,6 +67,33 @@ public sealed class ScriptModule : IAsyncDisposable
         }
 
         return loaded?.ReleaseAsync() ?? ValueTask.CompletedTask;
+    }
+
+    private static ValueTask<TValue> InvokeModuleAsync<[DynamicallyAccessedMembers(JsonSerialized)] TValue>(IJSObjectReference loaded, string identifier, CancellationToken? cancellationToken, object?[]? args) =>
+        cancellationToken is { } token ? loaded.InvokeAsync<TValue>(identifier, token, args) : loaded.InvokeAsync<TValue>(identifier, args);
+
+    private ValueTask<TValue> InvokeCoreAsync<[DynamicallyAccessedMembers(JsonSerialized)] TValue>(string identifier, CancellationToken? cancellationToken, object?[]? args)
+    {
+        IJSObjectReference? loaded;
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+
+            loaded = module;
+            if (loaded is null)
+            {
+                var call = new PendingCall<TValue>(identifier, cancellationToken, args);
+                pending.Add(call);
+                if ((loading is null) || loading.IsCompleted)
+                {
+                    loading = LoadAsync();
+                }
+
+                return new ValueTask<TValue>(call.Completion);
+            }
+        }
+
+        return InvokeModuleAsync<TValue>(loaded, identifier, cancellationToken, args);
     }
 
     private async Task LoadAsync()
@@ -154,11 +166,14 @@ public sealed class ScriptModule : IAsyncDisposable
 
         private readonly string identifier;
 
+        private readonly CancellationToken? cancellationToken;
+
         private readonly object?[]? args;
 
-        public PendingCall(string identifier, object?[]? args)
+        public PendingCall(string identifier, CancellationToken? cancellationToken, object?[]? args)
         {
             this.identifier = identifier;
+            this.cancellationToken = cancellationToken;
             this.args = args;
         }
 
@@ -190,6 +205,6 @@ public sealed class ScriptModule : IAsyncDisposable
         }
 
         private async Task<TValue> InvokeCoreAsync(IJSObjectReference loaded) =>
-            await loaded.InvokeAsync<TValue>(identifier, args).ConfigureAwait(false);
+            await InvokeModuleAsync<TValue>(loaded, identifier, cancellationToken, args).ConfigureAwait(false);
     }
 }
