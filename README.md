@@ -15,6 +15,7 @@ Component library for Blazor applications.
 * `NativeDialog` — open and close a native `<dialog>` by binding
 * `FileDropZone` — pass dropped or pasted files to the `<InputFile>` inside it
 * `FileUpload` — upload dropped, pasted or picked files and folders to a URL from the browser
+* `SortableZone` — reorder items and move them between zones by mouse, touch or keyboard
 * `IScreen` — keep the screen on and keep the page fullscreen from code
 * `ISpeaker` — play tones and read text aloud from code
 * `IBrowserTabs` — run actions one tab at a time and send messages to the other tabs
@@ -139,6 +140,39 @@ app.MapPost("/api/upload/{**folder}", async (string? folder, [FromForm] string r
 ```
 
 For large files, raise the request size limits of the server: Kestrel's `MaxRequestBodySize` (about 28.6 MB by default; over it, the connection is closed and the status is `0`) and `FormOptions.MultipartBodyLengthLimit` (128 MB by default).
+
+### SortableZone
+
+```razor
+<SortableZone class="list" OnMove="OnMove">
+    @foreach (var item in items)
+    {
+        <div @key="item" tabindex="0">@item</div>
+    }
+</SortableZone>
+```
+
+```csharp
+private void OnMove(SortableMoveEventArgs e)
+{
+    var item = items[e.OldIndex];
+    items.RemoveAt(e.OldIndex);
+    items.Insert(e.NewIndex, item);
+}
+```
+
+Each element inside the zone is an item; give each one a `@key`. An item is dragged with the mouse or a pen, with a touch held for `TouchDelay` (250 ms by default; a quick swipe scrolls the page), or with the keyboard: Space or Enter on a focused item picks it up, the arrow keys move it, Space or Enter drops it and Escape cancels. Nothing is sent to .NET while dragging: the other items slide aside, a placeholder marks where the item will land, and a scrolling container or the window scrolls when the pointer nears its edge. On the drop, the zone that receives the item raises `OnMove` once with `From` and `To`, the `Name` of the zones, and `OldIndex` and `NewIndex`; the application moves the item in its list, and when the list does not change, the item goes back. A drop outside the zones keeps the last position.
+
+Zones with the same `Group` exchange items, and the arrow keys across a zone move the item to the next zone of the group. `Sort="false"` takes items in without reordering, `Orientation="SortableOrientation.Horizontal"` is for a zone laid out in a row, `Handle` (a CSS selector) limits the drag to the handle, `Filter` pins the matching items and `Disabled` stops dragging. Keyboard moves are read out to screen readers with `Announcements`, where `{0}` is the position, `{1}` the count and `{2}` the `Name` of the zone.
+
+| Parameter | Look while dragging |
+|:-|:-|
+| `GhostClass` | The copy of the item that follows the pointer. Without it, the copy takes the colors of the item and casts a shadow |
+| `PlaceholderClass` | The box where the item will land. Without it, a dashed border |
+| `OverClass` | Added to the zone that will receive the item |
+| `Animation` | The time the items take to slide, in ms (150 by default; `0` turns it off) |
+
+The copy and the placeholder are added to `<body>`, so their classes cannot depend on parent elements. Layouts that wrap to the next line and moving several items at once are not supported.
 
 ### Services
 

@@ -1,0 +1,186 @@
+@using System.Globalization
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JSRuntime
+
+<div @ref="element" @attributes="AdditionalAttributes">@ChildContent</div>
+
+@code {
+    private const string ModulePath = "./_content/Components.Blazor/sortable-zone.js";
+
+    private readonly string defaultName = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
+
+    private ElementReference element;
+
+    private ScriptModule? module;
+
+    private DotNetObjectReference<SortableZone>? reference;
+
+    private IJSObjectReference? zone;
+
+    private Options current;
+
+    private Options attached;
+
+    private bool disposed;
+
+    [Parameter]
+    public string? Name { get; set; }
+
+    [Parameter]
+    public string? Group { get; set; }
+
+    [Parameter]
+    public bool Sort { get; set; } = true;
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public SortableOrientation Orientation { get; set; }
+
+    [Parameter]
+    public string? Handle { get; set; }
+
+    [Parameter]
+    public string? Filter { get; set; }
+
+    [Parameter]
+    public int TouchDelay { get; set; } = 250;
+
+    [Parameter]
+    public int Animation { get; set; } = 150;
+
+    [Parameter]
+    public string? GhostClass { get; set; }
+
+    [Parameter]
+    public string? PlaceholderClass { get; set; }
+
+    [Parameter]
+    public string? OverClass { get; set; }
+
+    [Parameter]
+    public SortableAnnouncements Announcements { get; set; } = SortableAnnouncements.Default;
+
+    [Parameter]
+    public EventCallback<SortableMoveEventArgs> OnMove { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        current = new Options(
+            Name ?? defaultName,
+            Group,
+            Sort,
+            Disabled,
+            Orientation == SortableOrientation.Horizontal,
+            Handle,
+            Filter,
+            TouchDelay,
+            Animation,
+            GhostClass,
+            PlaceholderClass,
+            OverClass,
+            Announcements);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = new ScriptModule(JSRuntime, ModulePath);
+            reference = DotNetObjectReference.Create(this);
+            attached = current;
+
+            IJSObjectReference created;
+            try
+            {
+                created = await module.InvokeAsync<IJSObjectReference>("attach", [reference, element, .. attached.ToArguments()]).ConfigureAwait(true);
+            }
+            catch (ObjectDisposedException) when (disposed)
+            {
+                return;
+            }
+
+            if (disposed)
+            {
+                await created.ReleaseAsync("dispose").ConfigureAwait(true);
+                return;
+            }
+
+            zone = created;
+        }
+
+        if ((zone is null) || disposed || (current == attached))
+        {
+            return;
+        }
+
+        attached = current;
+        await zone.InvokeVoidAsync("update", attached.ToArguments()).ConfigureAwait(true);
+    }
+
+    [JSInvokable]
+    public Task NotifyMove(string from, int oldIndex, int newIndex) =>
+        disposed ? Task.CompletedTask : OnMove.InvokeAsync(new SortableMoveEventArgs(from, oldIndex, current.Name, newIndex));
+
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+
+        if (zone is not null)
+        {
+            await zone.ReleaseAsync("dispose").ConfigureAwait(true);
+            zone = null;
+        }
+
+        reference?.Dispose();
+
+        if (module is not null)
+        {
+            await module.DisposeAsync().ConfigureAwait(true);
+        }
+    }
+
+    private readonly record struct Options(
+        string Name,
+        string? Group,
+        bool Sort,
+        bool Disabled,
+        bool Horizontal,
+        string? Handle,
+        string? Filter,
+        int TouchDelay,
+        int Animation,
+        string? GhostClass,
+        string? PlaceholderClass,
+        string? OverClass,
+        SortableAnnouncements Announcements)
+    {
+        public object?[] ToArguments() =>
+        [
+            Name,
+            Group,
+            Sort,
+            Disabled,
+            Horizontal,
+            Handle,
+            Filter,
+            TouchDelay,
+            Animation,
+            GhostClass,
+            PlaceholderClass,
+            OverClass,
+            Announcements.Grabbed,
+            Announcements.Moved,
+            Announcements.Dropped,
+            Announcements.Canceled
+        ];
+    }
+}

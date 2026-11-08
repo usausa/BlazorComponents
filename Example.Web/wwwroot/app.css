@@ -83,3 +83,33 @@ h1:focus {
 .example-dialog::backdrop {
     background-color: rgb(0 0 0 / 30%);
 }
+
+.example-sortable {
+    cursor: grab;
+    user-select: none;
+}
+
+.example-board {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.example-column {
+    width: 14rem;
+    padding: 0.5rem;
+    border-radius: var(--bs-border-radius);
+    background-color: var(--bs-tertiary-bg);
+}
+
+.example-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 3rem;
+}
+
+.example-cards.example-over {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+}

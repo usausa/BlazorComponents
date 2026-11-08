@@ -1,0 +1,62 @@
+@page "/sortable-zone"
+
+<PageTitle>SortableZone</PageTitle>
+
+<h1>SortableZone</h1>
+
+<h2 class="h5 mt-4">List</h2>
+
+<SortableZone class="example-cards example-width mb-2" OnMove="OnListMove">
+    @foreach (var item in items)
+    {
+        <div @key="item" class="card card-body p-2 example-sortable" tabindex="0">@item</div>
+    }
+</SortableZone>
+
+<p class="text-body-secondary">@string.Join(", ", items)</p>
+
+<h2 class="h5 mt-4">Board</h2>
+
+<div class="example-board">
+    @foreach (var column in columns)
+    {
+        <div class="example-column">
+            <div class="fw-bold mb-2">@column.Title</div>
+            <SortableZone class="example-cards" Name="@column.Title" Group="board" OverClass="example-over" OnMove="OnBoardMove">
+                @foreach (var card in column.Cards)
+                {
+                    <div @key="card" class="card card-body p-2 example-sortable" tabindex="0">@card</div>
+                }
+            </SortableZone>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<string> items = ["Apple", "Banana", "Cherry", "Grape", "Orange"];
+
+    private readonly List<Column> columns =
+    [
+        new("To do", ["Write the spec", "Review the design", "Fix the layout"]),
+        new("Doing", ["Build the page"]),
+        new("Done", [])
+    ];
+
+    private void OnListMove(SortableMoveEventArgs e)
+    {
+        var item = items[e.OldIndex];
+        items.RemoveAt(e.OldIndex);
+        items.Insert(e.NewIndex, item);
+    }
+
+    private void OnBoardMove(SortableMoveEventArgs e)
+    {
+        var from = columns.First(x => x.Title == e.From).Cards;
+        var to = columns.First(x => x.Title == e.To).Cards;
+        var card = from[e.OldIndex];
+        from.RemoveAt(e.OldIndex);
+        to.Insert(e.NewIndex, card);
+    }
+
+    private sealed record Column(string Title, List<string> Cards);
+}
