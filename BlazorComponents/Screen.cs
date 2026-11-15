@@ -21,14 +21,30 @@ internal sealed class Screen : IScreen, IAsyncDisposable
 
     public async ValueTask KeepScreenOnAsync(bool value)
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
-        NotifyScreenKeptOn(await controller.InvokeAsync<bool>("keepScreenOn", value).ConfigureAwait(true));
+        bool kept;
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            kept = await controller.InvokeAsync<bool>("keepScreenOn", value).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+            kept = false;
+        }
+
+        NotifyScreenKeptOn(kept);
     }
 
     public async ValueTask KeepFullscreenAsync(bool value)
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
-        await controller.InvokeVoidAsync("keepFullscreen", value).ConfigureAwait(true);
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            await controller.InvokeVoidAsync("keepFullscreen", value).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     [JSInvokable]

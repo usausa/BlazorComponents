@@ -55,7 +55,13 @@ public sealed class MediaQuery : ComponentBase, IAsyncDisposable
             }
 
             observer = created;
-            await NotifyChange(await observer.InvokeAsync<bool>("matches").ConfigureAwait(true)).ConfigureAwait(true);
+            try
+            {
+                await NotifyChange(await observer.InvokeAsync<bool>("matches").ConfigureAwait(true)).ConfigureAwait(true);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
         }
 
         if ((observer is null) || disposed || (Query == observedQuery))
@@ -64,7 +70,13 @@ public sealed class MediaQuery : ComponentBase, IAsyncDisposable
         }
 
         observedQuery = Query;
-        await NotifyChange(await observer.InvokeAsync<bool>("update", observedQuery).ConfigureAwait(true)).ConfigureAwait(true);
+        try
+        {
+            await NotifyChange(await observer.InvokeAsync<bool>("update", observedQuery).ConfigureAwait(true)).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     [JSInvokable]

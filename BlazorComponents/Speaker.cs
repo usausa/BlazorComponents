@@ -31,46 +31,83 @@ internal sealed class Speaker : ISpeaker, IAsyncDisposable
 
     public async ValueTask PrepareAsync()
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
-        NotifyReady(await controller.InvokeAsync<bool>("ready").ConfigureAwait(true));
+        bool ready;
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            ready = await controller.InvokeAsync<bool>("ready").ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+            ready = false;
+        }
+
+        NotifyReady(ready);
     }
 
     public async ValueTask<bool> PlayAsync(params IEnumerable<Tone> tones)
     {
         int[][] values = [.. tones.Select(static int[] (t) => [t.Frequency, t.Duration, t.Delay])];
-        var controller = await script.GetAsync().ConfigureAwait(true);
-        return await controller.InvokeAsync<bool>("play", CancellationToken.None, [values]).ConfigureAwait(true);
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            return await controller.InvokeAsync<bool>("play", CancellationToken.None, [values]).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+            return false;
+        }
     }
 
     public async ValueTask<bool> SpeakAsync(string text, SpeechOptions? options = null)
     {
         var settings = options ?? DefaultOptions;
-        var controller = await script.GetAsync().ConfigureAwait(true);
-
-        speaking++;
-        UpdateSpeaking();
         try
         {
-            return await controller.InvokeAsync<bool>("speak", CancellationToken.None, [text, settings.Lang, settings.Voice, settings.Rate, settings.Pitch, settings.Volume]).ConfigureAwait(true);
-        }
-        finally
-        {
-            speaking--;
+            var controller = await script.GetAsync().ConfigureAwait(true);
+
+            speaking++;
             UpdateSpeaking();
+            try
+            {
+                return await controller.InvokeAsync<bool>("speak", CancellationToken.None, [text, settings.Lang, settings.Voice, settings.Rate, settings.Pitch, settings.Volume]).ConfigureAwait(true);
+            }
+            finally
+            {
+                speaking--;
+                UpdateSpeaking();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            return false;
         }
     }
 
     public async ValueTask CancelAsync()
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
-        await controller.InvokeVoidAsync("cancel").ConfigureAwait(true);
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            await controller.InvokeVoidAsync("cancel").ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties, typeof(SpeechVoice))]
     public async ValueTask<IReadOnlyList<SpeechVoice>> GetVoicesAsync()
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
-        return await controller.InvokeAsync<SpeechVoice[]>("voices").ConfigureAwait(true);
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            return await controller.InvokeAsync<SpeechVoice[]>("voices").ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+            return [];
+        }
     }
 
     [JSInvokable]

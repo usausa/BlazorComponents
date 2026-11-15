@@ -61,7 +61,13 @@
         }
 
         attached = (DragOverClass, Paste);
-        await zone.InvokeVoidAsync("update", attached.DragOverClass, attached.Paste).ConfigureAwait(true);
+        try
+        {
+            await zone.InvokeVoidAsync("update", attached.DragOverClass, attached.Paste).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     public ValueTask OpenFilePickerAsync() =>

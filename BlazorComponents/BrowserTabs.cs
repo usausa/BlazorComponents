@@ -29,11 +29,20 @@ internal sealed class BrowserTabs : IBrowserTabs, IAsyncDisposable
 
     public async ValueTask<T> RunLockedAsync<T>(string name, Func<Task<T>> action, TimeSpan? timeout = null)
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
         var locked = new LockedAction<T>(action);
         using var reference = DotNetObjectReference.Create(locked);
         var milliseconds = timeout is { } value ? (long)value.TotalMilliseconds : -1;
-        var acquired = await controller.InvokeAsync<bool>("runLocked", CancellationToken.None, [name, milliseconds, reference]).ConfigureAwait(true);
+        bool acquired;
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            acquired = await controller.InvokeAsync<bool>("runLocked", CancellationToken.None, [name, milliseconds, reference]).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+            acquired = locked.Running is not null;
+        }
+
         return acquired && (locked.Running is { } running)
             ? await running.ConfigureAwait(true)
             : await action().ConfigureAwait(true);
@@ -41,17 +50,30 @@ internal sealed class BrowserTabs : IBrowserTabs, IAsyncDisposable
 
     public async ValueTask<IAsyncDisposable> ListenAsync(string name, Func<string, Task> received)
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
         var listener = new Listener(this, name, received);
-        listeners.Add(listener);
-        await controller.InvokeVoidAsync("listen", name).ConfigureAwait(true);
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            listeners.Add(listener);
+            await controller.InvokeVoidAsync("listen", name).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
         return listener;
     }
 
     public async ValueTask TellAsync(string name, string message)
     {
-        var controller = await script.GetAsync().ConfigureAwait(true);
-        await controller.InvokeVoidAsync("tell", name, message).ConfigureAwait(true);
+        try
+        {
+            var controller = await script.GetAsync().ConfigureAwait(true);
+            await controller.InvokeVoidAsync("tell", name, message).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     [JSInvokable]

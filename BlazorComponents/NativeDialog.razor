@@ -77,21 +77,27 @@
             return;
         }
 
-        if (attached != (CloseOnEscape, CloseOnBackdropClick))
+        try
         {
-            attached = (CloseOnEscape, CloseOnBackdropClick);
-            await dialog.InvokeVoidAsync("update", attached.CloseOnEscape, attached.CloseOnBackdropClick).ConfigureAwait(true);
-        }
+            if (attached != (CloseOnEscape, CloseOnBackdropClick))
+            {
+                attached = (CloseOnEscape, CloseOnBackdropClick);
+                await dialog.InvokeVoidAsync("update", attached.CloseOnEscape, attached.CloseOnBackdropClick).ConfigureAwait(true);
+            }
 
-        if (Open && !shown)
-        {
-            shown = true;
-            await dialog.InvokeVoidAsync("show", Modal).ConfigureAwait(true);
+            if (Open && !shown)
+            {
+                shown = true;
+                await dialog.InvokeVoidAsync("show", Modal).ConfigureAwait(true);
+            }
+            else if (!Open && shown)
+            {
+                shown = false;
+                await dialog.InvokeVoidAsync("close").ConfigureAwait(true);
+            }
         }
-        else if (!Open && shown)
+        catch (JSDisconnectedException)
         {
-            shown = false;
-            await dialog.InvokeVoidAsync("close").ConfigureAwait(true);
         }
     }
 

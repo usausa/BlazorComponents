@@ -81,7 +81,13 @@ public sealed class HotKey : ComponentBase, IAsyncDisposable
         }
 
         registered = current;
-        await registration.InvokeVoidAsync("update", registered.ToArguments()).ConfigureAwait(true);
+        try
+        {
+            await registration.InvokeVoidAsync("update", registered.ToArguments()).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     [JSInvokable]

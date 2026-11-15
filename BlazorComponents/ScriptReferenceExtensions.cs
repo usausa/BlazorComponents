@@ -8,7 +8,22 @@ internal static class ScriptReferenceExtensions
     {
         if (disposeIdentifier is not null)
         {
-            await IgnoreTeardownAsync(reference.InvokeVoidAsync(disposeIdentifier)).ConfigureAwait(false);
+            try
+            {
+                await reference.InvokeVoidAsync(disposeIdentifier).ConfigureAwait(false);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (JSException)
+            {
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
         await IgnoreTeardownAsync(reference.DisposeAsync()).ConfigureAwait(false);

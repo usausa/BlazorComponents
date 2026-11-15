@@ -120,17 +120,23 @@
         }
 
         attached = current;
-        await zone.InvokeVoidAsync("update", attached.ToArguments()).ConfigureAwait(true);
+        try
+        {
+            await zone.InvokeVoidAsync("update", attached.ToArguments()).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     public ValueTask OpenFilePickerAsync() =>
-        zone?.InvokeVoidAsync("open", false) ?? ValueTask.CompletedTask;
+        InvokeZoneAsync("open", false);
 
     public ValueTask OpenFolderPickerAsync() =>
-        zone?.InvokeVoidAsync("open", true) ?? ValueTask.CompletedTask;
+        InvokeZoneAsync("open", true);
 
     public ValueTask CancelAsync() =>
-        zone?.InvokeVoidAsync("cancel") ?? ValueTask.CompletedTask;
+        InvokeZoneAsync("cancel");
 
     [JSInvokable]
     [DynamicDependency(JsonSerialized, typeof(FileUploadEntry))]
@@ -196,6 +202,23 @@
         }
     }
 
+    private async ValueTask InvokeZoneAsync(string identifier, params object?[] args)
+    {
+        if (zone is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await zone.InvokeVoidAsync(identifier, args).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+#pragma warning disable BL0016
     private async Task<List<T>> ReadAsync<T>(string identifier, int count)
     {
         var values = new List<T>(count);
@@ -212,6 +235,7 @@
 
         return values;
     }
+#pragma warning restore BL0016
 
     private bool IsSameOrigin(string url)
     {

@@ -123,7 +123,13 @@
         }
 
         attached = current;
-        await zone.InvokeVoidAsync("update", attached.ToArguments()).ConfigureAwait(true);
+        try
+        {
+            await zone.InvokeVoidAsync("update", attached.ToArguments()).ConfigureAwait(true);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     [JSInvokable]

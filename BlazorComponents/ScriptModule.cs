@@ -69,8 +69,10 @@ public sealed class ScriptModule : IAsyncDisposable
         return loaded?.ReleaseAsync() ?? ValueTask.CompletedTask;
     }
 
+#pragma warning disable BL0016
     private static ValueTask<TValue> InvokeModuleAsync<[DynamicallyAccessedMembers(JsonSerialized)] TValue>(IJSObjectReference loaded, string identifier, CancellationToken? cancellationToken, object?[]? args) =>
         cancellationToken is { } token ? loaded.InvokeAsync<TValue>(identifier, token, args) : loaded.InvokeAsync<TValue>(identifier, args);
+#pragma warning restore BL0016
 
     private ValueTask<TValue> InvokeCoreAsync<[DynamicallyAccessedMembers(JsonSerialized)] TValue>(string identifier, CancellationToken? cancellationToken, object?[]? args)
     {
@@ -150,8 +152,10 @@ public sealed class ScriptModule : IAsyncDisposable
         await loaded.ReleaseAsync().ConfigureAwait(false);
     }
 
+#pragma warning disable BL0016
     private async Task<IJSObjectReference> ImportAsync() =>
         await runtime.InvokeAsync<IJSObjectReference>("import", Path).ConfigureAwait(false);
+#pragma warning restore BL0016
 
     private abstract class PendingCall
     {
